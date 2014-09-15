@@ -12,11 +12,12 @@ order to replace the Python version of a bot I wrote in Python using Twisted.
 Since I did not really found an easy to use build system for Erlang I usually
 start the bot using the Erlang REPL:
 
-    :::bash
+    :::console
     $ cd src/
     $ erl
     > c(barman).
     > barman:client().
+    irc>
 
 In order to exit the bot you have to type `exit` and in order to quit the
 Erlang interactive shell you have to call `init:stop().` and it will go away
