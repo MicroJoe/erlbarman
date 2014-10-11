@@ -20,6 +20,8 @@ stop(_State) ->
 -define(REALNAME, <<"Erlang Barman Bot by MicroJoe">>).
 -define(QUIT, ?REALNAME).
 
+-define(CHAN, <<"#erlbot">>).
+
 client() ->
   % Connect to the server
   {ok, Sock} = gen_tcp:connect(?SERVER_HOST, ?SERVER_PORT,
@@ -45,15 +47,15 @@ client() ->
 command(Sock, Cmd) ->
   gen_tcp:send(Sock, lists:append([Cmd, [<<13, 10>>]])).
 
-privmsg(Sock, Message) ->
-  gen_tcp:send(Sock, lists:append([[<<"PRIVMSG #erlbot :">>], Message, [<<13, 10>>]])).
+privmsg(Sock, Dest, Message) ->
+  command(Sock, lists:append([[<<"PRIVMSG ">>, Dest, <<" :">>], Message])).
 
 % CTCP stuff
-ctcp(Sock, Cmd) ->
-  privmsg(Sock, lists:append([[<<1>>], Cmd, [<<1>>]])).
+ctcp(Sock, Dest, Cmd) ->
+  privmsg(Sock, Dest, lists:append([[<<1>>], Cmd, [<<1>>]])).
 
-action(Sock, Msg) ->
-  ctcp(Sock, lists:append([[<<"ACTION ">>], Msg])).
+action(Sock, Dest, Msg) ->
+  ctcp(Sock, Dest, lists:append([[<<"ACTION ">>], Msg])).
 
 % Basic prompt in order to send raw IRC commands and to quit the program
 loop_prompt(Pid, Sock) ->
@@ -65,12 +67,30 @@ loop_prompt(Pid, Sock) ->
       command(Sock, [<<"QUIT ">>, ?QUIT]),
       closed;
     <<"action\n">> ->
-      action(Sock, [<<"sert un jus.">>]),
+      action(Sock, ?CHAN, [<<"sert un jus ">>, jus:choose_fruit(), <<".">>]),
       loop_prompt(Pid, Sock);
     _ ->
       command(Sock, [Cmd]),
       loop_prompt(Pid, Sock)
   end.
+
+handle_recv(Sock, Packet) ->
+    case binary:split(Packet, <<" ">>, [global, trim]) of
+        [<<"PING">>, _] ->
+            command(Sock, [<<"PONG">>]),
+            pong;
+        [Host, <<"PRIVMSG">>, Chan | MsgParts] ->
+            Msg = list_to_binary(lists:foldl(
+                    fun(X, Sum) -> lists:append([Sum, [X, <<" ">>]]) end,
+                    [<<"">>],
+                    MsgParts
+               )),
+            RaffinedMsg = binary:part(Msg, 1, byte_size(Msg) - 1),
+            io:format("PRIVMSG ~w~n", [{Host, Chan, Msg}]),
+            privmsg(Sock, ?CHAN, [RaffinedMsg]),
+            privmsghandled;
+        _ -> {not_handled, Packet}
+    end.
 
 % Writing loop
 loop_write(Sock) ->
@@ -84,6 +104,7 @@ loop_recv(Sock) ->
   case gen_tcp:recv(Sock, 0) of
     {ok, Packet} ->
       io:format("~ts", [Packet]),
+      handle_recv(Sock, Packet),
       loop_recv(Sock);
     {error, closed} ->
       closed
