@@ -42,7 +42,6 @@ client() ->
       true
   end.
 
-
 % Basic prompt in order to send raw IRC commands and to quit the program
 loop_prompt(Pid, Sock) ->
   Input = io:get_line("irc> "),
