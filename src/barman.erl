@@ -19,6 +19,7 @@ stop(_State) ->
 -define(NICK, <<"erlbot">>).
 -define(REALNAME, <<"Erlang Barman Bot by MicroJoe">>).
 -define(QUIT, ?REALNAME).
+-define(CHAN, <<"#erlbot">>).
 
 client() ->
   % Connect to the server
@@ -26,8 +27,8 @@ client() ->
                                [binary, {active, false}, {packet, 0}]),
 
   % Send authentification stuff
-  ok = command(Sock, [<<"NICK ">>, ?NICK]),
-  ok = command(Sock, [<<"USER ">>, ?NICK, <<" 0 * :">>, ?REALNAME]),
+  ok = irc:command(Sock, [<<"NICK ">>, ?NICK]),
+  ok = irc:command(Sock, [<<"USER ">>, ?NICK, <<" 0 * :">>, ?REALNAME]),
 
   % Spawn read, prompt and write loops
   spawn(?MODULE, loop_recv, [Sock]),
@@ -41,19 +42,6 @@ client() ->
       true
   end.
 
-% Send an IRC command to the socket
-command(Sock, Cmd) ->
-  gen_tcp:send(Sock, lists:append([Cmd, [<<13, 10>>]])).
-
-privmsg(Sock, Message) ->
-  gen_tcp:send(Sock, lists:append([[<<"PRIVMSG #erlbot :">>], Message, [<<13, 10>>]])).
-
-% CTCP stuff
-ctcp(Sock, Cmd) ->
-  privmsg(Sock, lists:append([[<<1>>], Cmd, [<<1>>]])).
-
-action(Sock, Msg) ->
-  ctcp(Sock, lists:append([[<<"ACTION ">>], Msg])).
 
 % Basic prompt in order to send raw IRC commands and to quit the program
 loop_prompt(Pid, Sock) ->
@@ -62,13 +50,13 @@ loop_prompt(Pid, Sock) ->
   case Cmd of
     <<"exit\n">> ->
       Pid ! stop,
-      command(Sock, [<<"QUIT ">>, ?QUIT]),
+      irc:command(Sock, [<<"QUIT ">>, ?QUIT]),
       closed;
     <<"action\n">> ->
-      action(Sock, [<<"sert un jus.">>]),
+      irc:action(Sock, ?CHAN, [<<"sert un jus.">>]),
       loop_prompt(Pid, Sock);
     _ ->
-      command(Sock, [Cmd]),
+      irc:command(Sock, [Cmd]),
       loop_prompt(Pid, Sock)
   end.
 
