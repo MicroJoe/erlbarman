@@ -63,17 +63,18 @@ loop_prompt(Pid, Sock) ->
 handle_recv(Sock, Packet) ->
     case binary:split(Packet, <<" ">>, [global, trim]) of
         [<<"PING">>, _] ->
+            io:format("PONG~n"),
             irc:command(Sock, [<<"PONG">>]),
             pong;
-        [Host, <<"PRIVMSG">>, Chan | MsgParts] ->
+        [_Host, <<"PRIVMSG">>, Chan, <<":!jus">> | MsgParts] ->
             Msg = list_to_binary(lists:foldl(
                     fun(X, Sum) -> lists:append([Sum, [X, <<" ">>]]) end,
                     [<<"">>],
                     MsgParts
                )),
-            RaffinedMsg = binary:part(Msg, 1, byte_size(Msg) - 1),
-            io:format("PRIVMSG ~w~n", [{Host, Chan, Msg}]),
-            irc:privmsg(Sock, ?CHAN, [RaffinedMsg]),
+            RaffinedMsg = [binary:part(Msg, 1, byte_size(Msg) - 1)],
+            io:format("PRIVMSG ~w~n", [RaffinedMsg]),
+            irc:privmsg(Sock, Chan, [RaffinedMsg]),
             privmsghandled;
         _ -> {not_handled, Packet}
     end.

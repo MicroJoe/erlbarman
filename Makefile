@@ -3,6 +3,6 @@ all:
 	erl -make
 
 shell:
-	erl -pa ebin/
+	erl -pa ebin/ +pc unicode
 
 .PHONY: shell
