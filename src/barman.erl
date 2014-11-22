@@ -19,8 +19,8 @@ stop(_State) ->
 -define(NICK, <<"erlbot">>).
 -define(REALNAME, <<"Erlang Barman Bot by MicroJoe">>).
 -define(QUIT, ?REALNAME).
-
 -define(CHAN, <<"#erlbot">>).
+
 
 client() ->
   % Connect to the server
@@ -28,8 +28,8 @@ client() ->
                                [binary, {active, false}, {packet, 0}]),
 
   % Send authentification stuff
-  ok = command(Sock, [<<"NICK ">>, ?NICK]),
-  ok = command(Sock, [<<"USER ">>, ?NICK, <<" 0 * :">>, ?REALNAME]),
+  ok = irc:command(Sock, [<<"NICK ">>, ?NICK]),
+  ok = irc:command(Sock, [<<"USER ">>, ?NICK, <<" 0 * :">>, ?REALNAME]),
 
   % Spawn read, prompt and write loops
   spawn(?MODULE, loop_recv, [Sock]),
@@ -43,20 +43,6 @@ client() ->
       true
   end.
 
-% Send an IRC command to the socket
-command(Sock, Cmd) ->
-  gen_tcp:send(Sock, lists:append([Cmd, [<<13, 10>>]])).
-
-privmsg(Sock, Dest, Message) ->
-  command(Sock, lists:append([[<<"PRIVMSG ">>, Dest, <<" :">>], Message])).
-
-% CTCP stuff
-ctcp(Sock, Dest, Cmd) ->
-  privmsg(Sock, Dest, lists:append([[<<1>>], Cmd, [<<1>>]])).
-
-action(Sock, Dest, Msg) ->
-  ctcp(Sock, Dest, lists:append([[<<"ACTION ">>], Msg])).
-
 % Basic prompt in order to send raw IRC commands and to quit the program
 loop_prompt(Pid, Sock) ->
   Input = io:get_line("irc> "),
@@ -64,20 +50,20 @@ loop_prompt(Pid, Sock) ->
   case Cmd of
     <<"exit\n">> ->
       Pid ! stop,
-      command(Sock, [<<"QUIT ">>, ?QUIT]),
+      irc:command(Sock, [<<"QUIT ">>, ?QUIT]),
       closed;
     <<"action\n">> ->
-      action(Sock, ?CHAN, [<<"sert un jus ">>, jus:choose_fruit(), <<".">>]),
+      irc:action(Sock, ?CHAN, [<<"sert un jus.">>, jus:choose_fruit(), <<".">>]),
       loop_prompt(Pid, Sock);
     _ ->
-      command(Sock, [Cmd]),
+      irc:command(Sock, [Cmd]),
       loop_prompt(Pid, Sock)
   end.
 
 handle_recv(Sock, Packet) ->
     case binary:split(Packet, <<" ">>, [global, trim]) of
         [<<"PING">>, _] ->
-            command(Sock, [<<"PONG">>]),
+            irc:command(Sock, [<<"PONG">>]),
             pong;
         [Host, <<"PRIVMSG">>, Chan | MsgParts] ->
             Msg = list_to_binary(lists:foldl(
@@ -87,7 +73,7 @@ handle_recv(Sock, Packet) ->
                )),
             RaffinedMsg = binary:part(Msg, 1, byte_size(Msg) - 1),
             io:format("PRIVMSG ~w~n", [{Host, Chan, Msg}]),
-            privmsg(Sock, ?CHAN, [RaffinedMsg]),
+            irc:privmsg(Sock, ?CHAN, [RaffinedMsg]),
             privmsghandled;
         _ -> {not_handled, Packet}
     end.

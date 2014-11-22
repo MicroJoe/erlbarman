@@ -13,9 +13,7 @@ Since I did not really found an easy to use build system for Erlang I usually
 start the bot using the Erlang REPL:
 
     :::console
-    $ cd src/
-    $ erl
-    > c(barman).
+    $ make shell
     > barman:client().
     irc>
 
