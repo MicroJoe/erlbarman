@@ -41,3 +41,8 @@ ctcp(Sock, Dest, Cmd) ->
 % ACTION CTCP command
 action(Sock, Dest, Msg) ->
   ctcp(Sock, Dest, lists:append([[<<"ACTION ">>], Msg])).
+
+nick_from_host(Host) ->
+  [_ | Li] = binary:bin_to_list(Host),
+  binary:list_to_bin(lists:takewhile(fun(C) -> C /= $! end, Li)).
+

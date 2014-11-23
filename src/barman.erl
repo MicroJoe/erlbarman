@@ -21,6 +21,8 @@ stop(_State) ->
 -define(QUIT, ?REALNAME).
 -define(CHAN, <<"#erlbot">>).
 
+-define(EOL, <<13, 10>>).
+
 
 client() ->
   % Connect to the server
@@ -53,31 +55,34 @@ loop_prompt(Pid, Sock) ->
       irc:command(Sock, [<<"QUIT ">>, ?QUIT]),
       closed;
     <<"action\n">> ->
-      irc:action(Sock, ?CHAN, [<<"sert un jus.">>, jus:choose_fruit(), <<".">>]),
+      irc:action(Sock, ?CHAN, [<<"sert un jus ">>, jus:choose_fruit(), <<".">>]),
       loop_prompt(Pid, Sock);
     _ ->
       irc:command(Sock, [Cmd]),
       loop_prompt(Pid, Sock)
   end.
 
-handle_recv(Sock, Packet) ->
-    case binary:split(Packet, <<" ">>, [global, trim]) of
-        [<<"PING">>, _] ->
-            io:format("PONG~n"),
+handle_recv(Sock, Line) ->
+    case binary:split(Line, <<" ">>, [global, trim]) of
+        [_Host, <<"MODE">>, _Nick, <<"+x">>] ->
+            io:format("Identified~n"),
+            io:format("Joining ~s...~n", [?CHAN]),
+            irc:command(Sock, [<<"JOIN ">>, ?CHAN]);
+        [<<"PING">>, From] ->
+            io:format("Pong back to ~s~n", [From]),
             irc:command(Sock, [<<"PONG">>]),
             pong;
-        [_Host, <<"PRIVMSG">>, Chan, <<":!jus">> | MsgParts] ->
-            Msg = list_to_binary(lists:foldl(
-                    fun(X, Sum) -> lists:append([Sum, [X, <<" ">>]]) end,
-                    [<<"">>],
-                    MsgParts
-               )),
-            RaffinedMsg = [binary:part(Msg, 1, byte_size(Msg) - 1)],
-            io:format("PRIVMSG ~w~n", [RaffinedMsg]),
-            irc:privmsg(Sock, Chan, [RaffinedMsg]),
-            privmsghandled;
-        _ -> {not_handled, Packet}
+        [Host, <<"PRIVMSG">>, Chan, <<":!jus">>] ->
+            action_jus(Sock, Chan, irc:nick_from_host(Host));
+        [_Host, <<"PRIVMSG">>, Chan, <<":!jus">> | Recipients] ->
+            lists:map(fun(Dest) -> action_jus(Sock, Chan, Dest) end, Recipients);
+        _ ->
+            {not_handled, Line}
     end.
+
+action_jus(Sock, Chan, Dest) ->
+    io:format("Sert un jus à ~s sur ~s~n", [Dest, Chan]),
+    irc:action(Sock, Chan, jus:jus(Dest)).
 
 % Writing loop
 loop_write(Sock) ->
@@ -90,8 +95,11 @@ loop_write(Sock) ->
 loop_recv(Sock) ->
   case gen_tcp:recv(Sock, 0) of
     {ok, Packet} ->
-      io:format("~ts", [Packet]),
-      handle_recv(Sock, Packet),
+      % io:format("~ts", [Packet]),
+      % We split the whole packet in lines
+      Lines = binary:split(Packet, ?EOL, [global, trim]),
+      % For each line in the packet we handle it with dedicated function
+      lists:map(fun(L) -> handle_recv(Sock, L) end, Lines),
       loop_recv(Sock);
     {error, closed} ->
       closed

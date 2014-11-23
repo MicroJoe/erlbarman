@@ -10,3 +10,6 @@ choose(List) ->
 
 choose_fruit() ->
     choose(?CHOICES).
+
+jus(Dest) ->
+    [<<"sert un jus ">>, choose_fruit(), <<" à ">>, Dest, <<".">>].
