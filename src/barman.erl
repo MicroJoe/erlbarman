@@ -75,7 +75,12 @@ handle_recv(Sock, Line) ->
         [Host, <<"PRIVMSG">>, Chan, <<":!jus">>] ->
             action_jus(Sock, Chan, irc:nick_from_host(Host));
         [_Host, <<"PRIVMSG">>, Chan, <<":!jus">> | Recipients] ->
-            lists:map(fun(Dest) -> action_jus(Sock, Chan, Dest) end, Recipients);
+            case (length(Recipients) =< 5) of
+                true ->
+                    lists:map(fun(Dest) -> action_jus(Sock, Chan, Dest) end, Recipients);
+                false ->
+                    irc:privmsg(Sock, Chan, [<<"Je ne peux pas délivrer autant de jus !">>])
+            end;
         _ ->
             {not_handled, Line}
     end.
