@@ -20,16 +20,28 @@ stop(_State) ->
 -define(REALNAME, <<"Erlang Barman Bot by MicroJoe">>).
 -define(QUIT, ?REALNAME).
 -define(CHAN, <<"#erlbot">>).
+-define(MAX_JUICES, 3).
 
 -define(EOL, <<13, 10>>).
 
+welcome() ->
+  io:format("Welcome to ErlBarman v0.1 !~n~n"),
+  io:format("Starting the client...~n").
 
 client() ->
+  welcome(),
+
   % Connect to the server
+  io:format("Connecting to IRC server ~s port ~b...~n",
+            [?SERVER_HOST, ?SERVER_PORT]),
+
   {ok, Sock} = gen_tcp:connect(?SERVER_HOST, ?SERVER_PORT,
                                [binary, {active, false}, {packet, 0}]),
 
   % Send authentification stuff
+  io:format("Sending authentification informations (nick : ~s, realname: ~s)~n",
+            [?NICK, ?REALNAME]),
+
   ok = irc:command(Sock, [<<"NICK ">>, ?NICK]),
   ok = irc:command(Sock, [<<"USER ">>, ?NICK, <<" 0 * :">>, ?REALNAME]),
 
@@ -75,18 +87,18 @@ handle_recv(Sock, Line) ->
         [Host, <<"PRIVMSG">>, Chan, <<":!jus">>] ->
             action_jus(Sock, Chan, irc:nick_from_host(Host));
         [_Host, <<"PRIVMSG">>, Chan, <<":!jus">> | Recipients] ->
-            case (length(Recipients) =< 5) of
+            case (length(Recipients) =< ?MAX_JUICES) of
                 true ->
                     lists:map(fun(Dest) -> action_jus(Sock, Chan, Dest) end, Recipients);
                 false ->
-                    irc:privmsg(Sock, Chan, [<<"Je ne peux pas délivrer autant de jus !">>])
+                    irc:privmsg(Sock, Chan, [<<"Je ne peux pas délivrer autant de boissons !">>])
             end;
         _ ->
             {not_handled, Line}
     end.
 
 action_jus(Sock, Chan, Dest) ->
-    io:format("Sert un jus à ~s sur ~s~n", [Dest, Chan]),
+    io:format("Serving a juice to ~s on ~s~n", [Dest, Chan]),
     irc:action(Sock, Chan, jus:jus(Dest)).
 
 % Writing loop

@@ -1,8 +1,16 @@
+BUILDDIR=ebin/
+ERLRUN=erl -pa $(BUILDDIR) +pc unicode
+
+.PHONY: shell run
+
 all:
-	mkdir -p ebin
+	mkdir -p $(BUILDDIR)
 	erl -make
 
+# Start an interactive Erlang shell
 shell:
-	erl -pa ebin/ +pc unicode
+	$(ERLRUN)
 
-.PHONY: shell
+
+clean:
+	rm -rf $(BUILDDIR)
