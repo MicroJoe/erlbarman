@@ -3,13 +3,18 @@
 
 % TODO: Handle unicode
 
--define(CHOICES, [<<"d'orange">>, <<"de citron">>]).
+-define(CHOICES, [<<"d’orange">>, <<"de citron">>]).
+
+readlines(FileName) ->
+  {ok, Data} = file:read_file(FileName),
+  binary:split(Data, [<<"\n">>], [global]).
 
 choose(List) ->
-    lists:nth(random:uniform(length(List)), List).
+  lists:nth(random:uniform(length(List)), List).
 
 choose_fruit() ->
-    choose(?CHOICES).
+  choose(readlines("data/jus.txt")).
+  % choose(?CHOICES).
 
 jus(Dest) ->
-    [<<"sert un jus ">>, choose_fruit(), <<" à ">>, Dest, <<".">>].
+  [<<"sert un jus ">>, choose_fruit(), <<" à ">>, Dest, <<".">>].
